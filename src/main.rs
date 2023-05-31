@@ -2,8 +2,6 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     
     if args.len() > 3 {
-        // println!("Usage: {} greet [name]", args[0]);
-        // println!("Usage: {} info", args[0]);
         println!("Invalid Syntax");
         return;
     }
@@ -11,7 +9,7 @@ fn main() {
     let command = &args[1];
 
     match command.as_str() {
-        "stock_price" => stock_price(&args[2]),
+        "price" => stock_price(&args[2]),
         "help" => help(),
         _ => println!("Invalid command: {}", command),
     }
@@ -27,7 +25,7 @@ fn stock_price(ticker: &str) {
 
 
 fn help() {
-    println!("Here are the functions you can use");
+    println!("Functions \n price TICKER");
 }
 
 fn scrape(ticker: &str) {
@@ -37,6 +35,13 @@ fn scrape(ticker: &str) {
     let document = scraper::Html::parse_document(&response);
 
     let price_finder = scraper::Selector::parse("fin-streamer[value]").unwrap();
+
+    let stock_name_selector = scraper::Selector::parse("h1.D\\(ib\\).Fz\\(18px\\)").unwrap();
+
+    if let Some(element) = document.select(&stock_name_selector).next() {
+        let stock_name = element.text().collect::<Vec<_>>().join("");
+        println!("Stock Name: {}", stock_name);
+    }
 
     let mut ticker_count = 0;
     let mut price_info = Vec::new();
@@ -54,5 +59,5 @@ fn scrape(ticker: &str) {
         }
     }
 
-    println!("Price: {} | Daily Change: {} | Pct Change {}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
+    println!("Price: {} | Daily Change: {:.5} | Pct Change {:.5}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
 }
