@@ -23,12 +23,14 @@ fn main() {
 fn stock_price(ticker: &str) {
     println!("Ticker: {}", ticker);
 
-    if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
-        scrape(ticker);
-    }
-    else{
-        println!("{} is not a valid ticker", ticker);
-    }
+    // if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
+    //     scrape(ticker);
+    // }
+    // else{
+    //     println!("{} is not a valid ticker", ticker);
+    // }
+    scrape(ticker);
+
 }
 
 fn help() {
@@ -40,7 +42,7 @@ fn scrape(ticker: &str) {
 
     let response = reqwest::blocking::get(url).unwrap().text().unwrap();
     let document = scraper::Html::parse_document(&response);
-
+    
     let price_finder = scraper::Selector::parse("fin-streamer[value]").unwrap();
 
     let stock_name_selector = scraper::Selector::parse("h1.D\\(ib\\).Fz\\(18px\\)").unwrap();
@@ -65,6 +67,9 @@ fn scrape(ticker: &str) {
             }
         }
     }
-
+    if price_info.len() < 3{
+        println!("Invalid Ticker: {}", ticker);
+        return
+    }
     println!("Price: {} | Daily Change: {:.5} | Pct Change {:.5}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
 }
