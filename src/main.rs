@@ -1,3 +1,5 @@
+mod tickers;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
@@ -20,9 +22,14 @@ fn main() {
 
 fn stock_price(ticker: &str) {
     println!("Ticker: {}", ticker);
-    scrape(ticker);
-}
 
+    if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
+        scrape(ticker);
+    }
+    else{
+        println!("{} is not a valid ticker", ticker);
+    }
+}
 
 fn help() {
     println!("Functions \n price TICKER");
