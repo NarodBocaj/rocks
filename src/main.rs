@@ -1,20 +1,20 @@
+use clap::Parser;
+
 mod tickers;
 
+/// Simple program to scrape stock price
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args{
+    /// Enter ticker for price info
+    #[arg(short, long)]
+    ticker: String,
+}
+
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    
-    if args.len() > 3 {
-        println!("Invalid Syntax");
-        return;
-    }
+    let args = Args::parse();
 
-    let command = &args[1];
-
-    match command.as_str() {
-        "price" => stock_price(&args[2]),
-        "help" => help(),
-        _ => println!("Invalid command: {}", command),
-    }
+    stock_price(&args.ticker);
 
 
 }
