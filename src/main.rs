@@ -16,7 +16,7 @@ fn main() {
 
     stock_price(&args.ticker);
 
-
+    
 }
 
 
