@@ -58,9 +58,9 @@ fn scrape(ticker: &str) {
     let response = reqwest::blocking::get(url).unwrap().text().unwrap();
     let document = scraper::Html::parse_document(&response);
     
-    let price_finder = scraper::Selector::parse("fin-streamer[value]").unwrap();
+    let price_finder = scraper::Selector::parse("fin-streamer[value]").unwrap();//yahoo finance class that contains lots of prices info on the page
 
-    let stock_name_selector = scraper::Selector::parse("h1.D\\(ib\\).Fz\\(18px\\)").unwrap();
+    let stock_name_selector = scraper::Selector::parse("h1.D\\(ib\\).Fz\\(18px\\)").unwrap();//yahoo finance html element that has stock price
 
     if let Some(element) = document.select(&stock_name_selector).next() {
         let stock_name = element.text().collect::<Vec<_>>().join("");
@@ -100,8 +100,8 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         let record = record?;
 
         if let Some((first, second)) = record.get(0).and_then(|first| record.get(1).map(|second| (first, second))) {
-            ticker_map.insert(second.to_owned(), first.to_owned());
-            builder.push(second);
+            ticker_map.insert(second.to_owned().to_lowercase(), first.to_owned());
+            builder.push(second.to_lowercase());
         }
     }
     Ok(())
@@ -109,6 +109,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
 
 //function to find a ticker based on a company name
 fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str) -> () {
+    let company_name = company_name.to_lowercase();
     let mut temp_search = String::new();
     let mut last_result: Vec<Vec<u8>> = vec![vec![]];
 
@@ -130,5 +131,7 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
     if !results_in_str.is_empty(){
         scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""));
     }
-    println!("No results found");
+    else{
+        println!("No results found");
+    }
 }
