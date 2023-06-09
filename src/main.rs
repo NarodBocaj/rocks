@@ -1,5 +1,10 @@
 use clap::Parser;
-
+use trie_rs::{TrieBuilder, Trie};
+use std::str;
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use csv;
 mod tickers;
 
 /// Simple program to scrape stock price
@@ -9,13 +14,28 @@ struct Args{
     /// Enter ticker for price info
     #[arg(short, long)]
     ticker: String,
+
+    /// Enter name of company for price info
+    #[arg(short, long)]
+    name: String,
 }
 
 fn main() {
     let args = Args::parse();
 
-    stock_price(&args.ticker);
+    let mut ticker_map: HashMap<String, String> = HashMap::new();
+    let mut builder: TrieBuilder<u8> = TrieBuilder::new();
+    make_trie_hm(&mut ticker_map, &mut builder);
 
+    let trie = builder.build();
+
+    if !args.ticker.is_empty() {
+        stock_price(&args.ticker);
+    }
+    else if !args.name.is_empty() {
+        let tick = find_ticker(&mut ticker_map, &mut trie, &args.name);
+        stock_price(tick);
+    }
     
 }
 
@@ -31,10 +51,6 @@ fn stock_price(ticker: &str) {
     // }
     scrape(ticker);
 
-}
-
-fn help() {
-    println!("Functions \n price TICKER");
 }
 
 fn scrape(ticker: &str) {
@@ -72,4 +88,48 @@ fn scrape(ticker: &str) {
         return
     }
     println!("Price: {} | Daily Change: {:.5} | Pct Change {:.5}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
+}
+
+//function to make a trie and hashmap from the filtered data
+fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::open("./filtered_data/equities.csv")?;
+    let reader = BufReader::new(file);
+
+    let mut csv_reader = csv::Reader::from_reader(reader);
+
+    for record in csv_reader.records() {
+        let record = record?;
+
+        if let Some((first, second)) = record.get(0).and_then(|first| record.get(1).map(|second| (first, second))) {
+            ticker_map.insert(second.to_owned(), first.to_owned());
+            builder.push(second);
+        }
+    }
+    Ok(())
+}
+
+//function to find a ticker based on a company name
+fn find_ticker(ticker_map: &mut HashMap<String, String>, trie: &mut Trie<u8>, company_name: &str) -> &str {
+    let mut temp_search = String::new();
+    let mut last_result: Vec<Vec<u8>> = vec![vec![]];
+
+    for c in company_name.chars(){
+        temp_search.push(c);
+        let results_in_u8s: Vec<Vec<u8>> = trie.predictive_search(&temp_search);
+
+        if !results_in_u8s.is_empty() {
+            last_result = results_in_u8s.clone();
+        }
+    }
+
+    let results_in_str: Vec<&str> = last_result
+        .iter()
+        .map(|u8s| std::str::from_utf8(u8s).unwrap())
+        .collect();
+
+    println!("Searching for the following stock {:?}", results_in_str);
+    if !results_in_str.is_empty(){
+        return ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or("")
+    }
+    return ""
 }
