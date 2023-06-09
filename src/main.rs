@@ -32,9 +32,8 @@ fn main() {
     if !args.ticker.is_empty() {
         stock_price(&args.ticker);
     }
-    else if !args.name.is_empty() {
-        let tick = find_ticker(&mut ticker_map, &mut trie, &args.name);
-        stock_price(tick);
+    if !args.name.is_empty() {
+        find_ticker(& ticker_map, & trie, &args.name);
     }
     
 }
@@ -109,7 +108,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
 }
 
 //function to find a ticker based on a company name
-fn find_ticker(ticker_map: &mut HashMap<String, String>, trie: &mut Trie<u8>, company_name: &str) -> &str {
+fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str) -> () {
     let mut temp_search = String::new();
     let mut last_result: Vec<Vec<u8>> = vec![vec![]];
 
@@ -129,7 +128,7 @@ fn find_ticker(ticker_map: &mut HashMap<String, String>, trie: &mut Trie<u8>, co
 
     println!("Searching for the following stock {:?}", results_in_str);
     if !results_in_str.is_empty(){
-        return ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or("")
+        scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""));
     }
-    return ""
+    println!("No results found");
 }
