@@ -102,21 +102,35 @@ fn scrape(ticker: &str) {
 
 //function to make a trie and hashmap from the filtered data
 fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::open("./filtered_data/equities.csv")?;
+    let equities_file = File::open("./filtered_data/equities.csv")?;
+    let etfs_file = File::open("./filtered_data/etfs.csv")?;
     
-    let reader = BufReader::new(file);
-
-    let mut csv_reader = Reader::from_reader(reader);
-
-    for record in csv_reader.records() {
+    let equities_reader = BufReader::new(equities_file);
+    let etfs_reader = BufReader::new(etfs_file);
+    
+    let mut equities_csv_reader = Reader::from_reader(equities_reader);
+    let mut etfs_csv_reader = Reader::from_reader(etfs_reader);
+    
+    for record in equities_csv_reader.records() {
         let record = record?;
-
+        
         if let Some((first, second)) = record.get(0).and_then(|first| record.get(1).map(|second| (first, second))) {
             ticker_map.insert(second.to_owned().to_lowercase(), first.to_owned());
             builder.push(second.to_lowercase());
             ticker_hs.insert(first.to_string());
         }
     }
+    
+    for record in etfs_csv_reader.records() {
+        let record = record?;
+        
+        if let Some((first, second)) = record.get(0).and_then(|first| record.get(1).map(|second| (first, second))) {
+            ticker_map.insert(second.to_owned().to_lowercase(), first.to_owned());
+            builder.push(second.to_lowercase());
+            ticker_hs.insert(first.to_string());
+        }
+    }
+    
     Ok(())
 }
 
