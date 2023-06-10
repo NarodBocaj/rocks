@@ -1,40 +1,51 @@
 use clap::Parser;
 use trie_rs::{TrieBuilder, Trie};
 use std::str;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
-use csv;
-mod tickers;
+use csv::Reader;
+
+// mod tickers;
 
 /// Simple program to scrape stock price
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args{
-    /// Enter ticker for price info
-    #[arg(short, long)]
-    ticker: String,
+    /// Enter ticker or company name for price info
+    // #[arg(short, long)]
+    query: String,
 
-    /// Enter name of company for price info
+    /// Force company name based search
     #[arg(short, long)]
-    name: String,
+    name: Option<String>,
+
+    /// Force ticker based search
+    #[arg(short, long)]
+    ticker: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let mut ticker_map: HashMap<String, String> = HashMap::new();
+    let mut ticker_map: HashMap<String, String> = HashMap::new(); //maps company name to ticker
     let mut builder: TrieBuilder<u8> = TrieBuilder::new();
-    make_trie_hm(&mut ticker_map, &mut builder);
+    let mut ticker_hs: HashSet<String> = HashSet::new();
+    make_trie_hm(&mut ticker_map, &mut builder, &mut ticker_hs);
 
     let trie = builder.build();
 
-    if !args.ticker.is_empty() {
-        stock_price(&args.ticker);
+    if !args.query.is_empty() {
+        if ticker_hs.contains(&args.query){//checks if what is being searched is a ticker or a company name
+            stock_price(&args.query);
+        }
+        else{
+            find_ticker(& ticker_map, & trie, &args.query); 
+        }
     }
-    if !args.name.is_empty() {
-        find_ticker(& ticker_map, & trie, &args.name);
-    }
+    // if !args.name.is_empty() {
+    //     find_ticker(& ticker_map, & trie, &args.name);
+    // }
     
 }
 
@@ -90,11 +101,12 @@ fn scrape(ticker: &str) {
 }
 
 //function to make a trie and hashmap from the filtered data
-fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>) -> Result<(), Box<dyn std::error::Error>> {
+fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open("./filtered_data/equities.csv")?;
+    
     let reader = BufReader::new(file);
 
-    let mut csv_reader = csv::Reader::from_reader(reader);
+    let mut csv_reader = Reader::from_reader(reader);
 
     for record in csv_reader.records() {
         let record = record?;
@@ -102,6 +114,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         if let Some((first, second)) = record.get(0).and_then(|first| record.get(1).map(|second| (first, second))) {
             ticker_map.insert(second.to_owned().to_lowercase(), first.to_owned());
             builder.push(second.to_lowercase());
+            ticker_hs.insert(first.to_string());
         }
     }
     Ok(())
