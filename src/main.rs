@@ -17,12 +17,12 @@ struct Args{
     query: String,
 
     /// Force company name based search
-    #[arg(short, long)]
-    name: Option<String>,
+    #[arg(short, long, action)]
+    name: bool,
 
     /// Force ticker based search
-    #[arg(short, long)]
-    ticker: Option<String>,
+    #[arg(short, long, action)]
+    ticker: bool,
 }
 
 fn main() {
@@ -36,7 +36,19 @@ fn main() {
     let trie = builder.build();
 
     if !args.query.is_empty() {
-        if ticker_hs.contains(&args.query){//checks if what is being searched is a ticker or a company name
+        if args.name && args.ticker {
+            println!("Ticker flag and name flag cannot be used together");
+        }
+        
+        else if args.ticker {
+            stock_price(&args.query);
+        }
+        
+        else if args.name {
+            find_ticker(& ticker_map, & trie, &args.query);
+        }
+        
+        else if ticker_hs.contains(&args.query){//checks if what is being searched is a ticker or a company name
             stock_price(&args.query);
         }
         else{
