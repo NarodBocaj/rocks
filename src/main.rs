@@ -23,6 +23,10 @@ struct Args{
     /// Force ticker based search
     #[arg(short, long, action)]
     ticker: bool,
+
+    /// Print 52 week range of price
+    #[arg(short, long, action)]
+    week_range_52: bool,
 }
 
 fn main() {
@@ -41,18 +45,18 @@ fn main() {
         }
         
         else if args.ticker {
-            stock_price(&args.query);
+            stock_price(&args.query, args.week_range_52);
         }
         
         else if args.name {
-            find_ticker(& ticker_map, & trie, &args.query);
+            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52);
         }
         
         else if ticker_hs.contains(&args.query){//checks if what is being searched is a ticker or a company name
-            stock_price(&args.query);
+            stock_price(&args.query, args.week_range_52);
         }
         else{
-            find_ticker(& ticker_map, & trie, &args.query); 
+            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52);
         }
     }
     // if !args.name.is_empty() {
@@ -62,7 +66,7 @@ fn main() {
 }
 
 
-fn stock_price(ticker: &str) {
+fn stock_price(ticker: &str, week_range_52: bool) {
     println!("Ticker: {}", ticker);
 
     // if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
@@ -71,11 +75,11 @@ fn stock_price(ticker: &str) {
     // else{
     //     println!("{} is not a valid ticker", ticker);
     // }
-    scrape(ticker);
+    scrape(ticker, week_range_52);
 
 }
 
-fn scrape(ticker: &str) {
+fn scrape(ticker: &str, week_range_52: bool) {
     let url = "https://finance.yahoo.com/quote/".to_owned() + ticker; //+ "p=" + ticker + "&.tsrc=fin-srch";
 
     let response = reqwest::blocking::get(url).unwrap().text().unwrap();
@@ -110,6 +114,16 @@ fn scrape(ticker: &str) {
         return
     }
     println!("Price: {} | Daily Change: {:.5} | Pct Change {:.5}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
+
+
+    if week_range_52{
+        let selector = scraper::Selector::parse("td[data-test=FIFTY_TWO_WK_RANGE-value]").unwrap();
+
+        if let Some(element) = document.select(&selector).next() {
+            let value = element.inner_html();
+            println!("52 Week Range: {}", value);
+        }
+    }
 }
 
 //function to make a trie and hashmap from the filtered data
@@ -147,7 +161,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
 }
 
 //function to find a ticker based on a company name
-fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str) -> () {
+fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str, week_range_52: bool) -> () {
     let company_name = company_name.to_lowercase();
     let mut temp_search = String::new();
     let mut last_result: Vec<Vec<u8>> = vec![vec![]];
@@ -168,7 +182,7 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
 
     println!("Searching for the following stock {:?}", results_in_str);
     if !results_in_str.is_empty(){
-        scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""));
+        scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""), week_range_52);
     }
     else{
         println!("No results found");
