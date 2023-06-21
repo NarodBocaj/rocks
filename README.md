@@ -13,7 +13,7 @@ Prints:
 
 # Usage:
   
->rocks [OPTIONS] <QUERY>
+>rocks [OPTIONS] QUERY
 
   
 
