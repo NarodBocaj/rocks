@@ -11,8 +11,9 @@ Prints:
 >Price: 401.11 | Daily Change: 11.64 | Pct Change 2.991%  
 
 
-Usage:
-  rocks [OPTIONS] <QUERY>
+# Usage:
+  
+>rocks [OPTIONS] <QUERY>
 
   
 
