@@ -14,11 +14,7 @@ Usage:
   
 
 Options:
-  -n, --name           Force company name based search
-  -t, --ticker         Force ticker based search
-  -w, --week-range-52  Print 52 week range of price
-  -m, --mkt-cap        Print market cap
-  -p, --pe-ratio       Print PE Ration
-  -e, --eps            Print earning per share
-  -h, --help           Print help
-  -V, --version        Print version
+| Flag    |  Description |
+| ------- | ------------ |
+| --name  | Force a search based only on company name |
+
