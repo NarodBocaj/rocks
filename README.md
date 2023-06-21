@@ -16,5 +16,11 @@ Usage:
 Options:
 | Flag    |  Description |
 | ------- | ------------ |
-| --name  | Force a search based only on company name |
-
+| --name  | Force a search assuming your query is a company name |
+| --ticker| Force a search assuming your query is a ticker |
+| --week-range-52     | Print 52 week range of stock price |
+| --mkt-cap           | Print current market cap |
+| --pe-ratio          | Print current price to earnings ratio |
+| --eps               | Print current earnings per share |
+| --help              | Print help |
+| --version           | Print version |
