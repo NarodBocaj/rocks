@@ -28,3 +28,6 @@ Options:
 | --eps               | Print current earnings per share |
 | --help              | Print help |
 | --version           | Print version |
+
+# Notes
+* The default usage of rocks QUERY checks the QUERY to see if it is in a list of ~11,000 US stock and ETF tickers. If QUERY is not found, a trie based search is done assuming a company name was entered. So if searching a ticker that is on Yahoo Finance but not a US Symbol the ==--ticker== flag is your friend.
