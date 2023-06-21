@@ -2,7 +2,7 @@
 Simple command line tool that scrapes Yahoo Finance to return stock information based on ticker or a company name search. 
 
 # Quick Start
-> ./target/release rocks NVDA  
+``` ./target/release rocks NVDA ```  
 
 Prints:   
 
@@ -13,7 +13,7 @@ Prints:
 
 # Usage:
   
->rocks [OPTIONS] QUERY
+```rocks [OPTIONS] <QUERY>```
 
   
 
@@ -30,4 +30,4 @@ Options:
 | --version           | Print version |
 
 # Notes
-* The default usage of rocks QUERY checks the QUERY to see if it is in a list of ~11,000 US stock and ETF tickers. If QUERY is not found, a trie based search is done assuming a company name was entered. So if searching a ticker that is on Yahoo Finance but not a US Symbol the ```--ticker``` flag is your friend.
+* The default usage of rocks ```<QUERY>``` checks the ```<QUERY>``` to see if it is in a list of ~11,000 US stock and ETF tickers. If ```<QUERY>``` is not found, a trie based search is done assuming a company name was entered. So if searching a ticker that is on Yahoo Finance but not a US Symbol the ```--ticker``` flag is your friend.
