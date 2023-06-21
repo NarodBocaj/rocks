@@ -1,6 +1,4 @@
-<p align="center">
-  <h1>rocks</h1>
-</p>
+# <center>rocks</center>
 Simple command line tool that scrapes Yahoo Finance to return stock information based on ticker or a company name search. 
 
 rocks NVDA
