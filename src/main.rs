@@ -219,7 +219,7 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
         .map(|u8s| std::str::from_utf8(u8s).unwrap())
         .collect();
 
-    println!("Search produced the following results {:?}", results_in_str);
+    println!("Search produced the following results: {:?} \n", results_in_str);
     if !results_in_str.is_empty(){
         scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""), week_range_52, mkt_cap, pe_ratio, eps);
     }
