@@ -167,8 +167,9 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
 
 //function to make a trie and hashmap from the filtered data
 fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let equities_file = File::open("./filtered_data/equities.csv")?;
-    let etfs_file = File::open("./filtered_data/etfs.csv")?;
+    //___NOTE___ need to figure out how to have this work for other installs after rocks is put on their path 
+    let equities_file = File::open("/mnt/c/Users/Jacob/Documents/Rusty things/rocks/filtered_data/equities.csv")?;
+    let etfs_file = File::open("/mnt/c/Users/Jacob/Documents/Rusty things/rocks/filtered_data/etfs.csv")?;
     
     let equities_reader = BufReader::new(equities_file);
     let etfs_reader = BufReader::new(etfs_file);
