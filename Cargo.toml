@@ -12,3 +12,5 @@ clap = { version = "4.3.2", features = ["derive"] }
 trie-rs = "0.1.1"
 csv = "1.2.2"
 itertools = "0.9"
+
+[build-dependencies]

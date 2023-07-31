@@ -1,9 +1,11 @@
 use clap::Parser;
 use trie_rs::{TrieBuilder, Trie};
 use std::str;
+use std::env;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Error;
 use csv::Reader;
 
 // mod tickers;
@@ -168,8 +170,23 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
 //function to make a trie and hashmap from the filtered data
 fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
     //___NOTE___ need to figure out how to have this work for other installs after rocks is put on their path 
-    let equities_file = File::open("/mnt/c/Users/Jacob/Documents/Rusty things/rocks/filtered_data/equities.csv")?;
-    let etfs_file = File::open("/mnt/c/Users/Jacob/Documents/Rusty things/rocks/filtered_data/etfs.csv")?;
+    let exe_path = env::current_exe()?;
+
+    // Get the parent directory of the executable
+    let exe_dir = exe_path.parent().ok_or_else(|| {
+        Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to get the parent directory of the executable.",
+        )
+    })?;
+
+    // Build the paths to the CSV files relative to the executable's directory
+    let equities_file = exe_dir.join("equities.csv");
+    let etfs_file = exe_dir.join("etfs.csv");
+
+    // Now, open the CSV files using the paths
+    let equities_file = File::open(equities_file)?;
+    let etfs_file = File::open(etfs_file)?;
     
     let equities_reader = BufReader::new(equities_file);
     let etfs_reader = BufReader::new(etfs_file);
