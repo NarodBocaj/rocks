@@ -221,10 +221,10 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
 
 //function to make a trie and hashmap from the filtered data
 fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
-    //___NOTE___ need to figure out how to have this work for other installs after rocks is put on their path 
-    let exe_path = env::current_exe()?;
-
-    // Get the parent directory of the executable
+    // Get the executable's path
+    let exe_path = std::env::current_exe()?;
+    
+    // Get the directory containing the executable
     let exe_dir = exe_path.parent().ok_or_else(|| {
         Error::new(
             std::io::ErrorKind::Other,
@@ -232,13 +232,53 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         )
     })?;
 
-    // Build the paths to the CSV files relative to the executable's directory
-    let equities_file = exe_dir.join("equities.csv");
-    let etfs_file = exe_dir.join("etfs.csv");
+    // Try to find the CSV files in the following locations:
+    // 1. In the same directory as the executable
+    // 2. In a 'filtered_data' subdirectory of the executable's directory
+    // 3. In the current working directory
+    // 4. In a 'filtered_data' subdirectory of the current working directory
+    
+    let possible_paths = [
+        exe_dir.join("equities.csv"),
+        exe_dir.join("etfs.csv"),
+        exe_dir.join("filtered_data/equities.csv"),
+        exe_dir.join("filtered_data/etfs.csv"),
+        std::env::current_dir()?.join("equities.csv"),
+        std::env::current_dir()?.join("etfs.csv"),
+        std::env::current_dir()?.join("filtered_data/equities.csv"),
+        std::env::current_dir()?.join("filtered_data/etfs.csv"),
+    ];
 
-    // Now, open the CSV files using the paths
-    let equities_file = File::open(equities_file)?;
-    let etfs_file = File::open(etfs_file)?;
+    let mut equities_path = None;
+    let mut etfs_path = None;
+
+    for path in possible_paths {
+        if path.exists() {
+            if path.file_name().unwrap_or_default() == "equities.csv" {
+                equities_path = Some(path);
+            } else if path.file_name().unwrap_or_default() == "etfs.csv" {
+                etfs_path = Some(path);
+            }
+        }
+    }
+
+    let equities_path = equities_path.ok_or_else(|| {
+        Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not find equities.csv in any of the expected locations.",
+        )
+    })?;
+
+    let etfs_path = etfs_path.ok_or_else(|| {
+        Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not find etfs.csv in any of the expected locations.",
+        )
+    })?;
+
+    // Now, open the CSV files using the found paths
+    let equities_file = File::open(equities_path)?;
+    let etfs_file = File::open(etfs_path)?;
     
     let equities_reader = BufReader::new(equities_file);
     let etfs_reader = BufReader::new(etfs_file);
@@ -294,10 +334,15 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
         return;
     }
 
-    println!("Search produced the following results:");
+    println!("\nSearch Results:");
+    println!("---------------");
     for (i, company) in results_in_str.iter().enumerate() {
         if let Some(ticker) = ticker_map.get(*company) {
-            println!("[{}] Company: {} | Ticker: {}", i, company, ticker);
+            println!("[{}]  Company: {:<40} | Ticker: {}", 
+                i, 
+                company, 
+                ticker
+            );
         }
     }
     println!("\nEnter the number of your choice (0-{}):", results_in_str.len() - 1);
@@ -308,7 +353,7 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
     match choice.trim().parse::<usize>() {
         Ok(index) if index < results_in_str.len() => {
             if let Some(ticker) = ticker_map.get(results_in_str[index]) {
-                println!("Selected - Ticker: {}", ticker);
+                println!("\nSelected - Ticker: {}", ticker);
                 scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range);
             }
         },
