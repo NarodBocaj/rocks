@@ -8,7 +8,7 @@ use std::io::BufReader;
 use std::io::Error;
 use csv::Reader;
 
-// mod tickers;
+mod debug;
 
 /// Simple program to scrape stock price
 #[derive(Parser, Debug)]
@@ -41,6 +41,10 @@ struct Args{
     /// Print earning per share
     #[arg(short, long, action)]
     eps: bool,
+
+    /// Print day's trading range
+    #[arg(short, long, action)]
+    day_range: bool,
 }
 
 fn main() {
@@ -59,18 +63,18 @@ fn main() {
         }
         
         else if args.ticker {
-            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps);
+            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
         }
         
         else if args.name {
-            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps);
+            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
         }
         
         else if ticker_hs.contains(&args.query){//checks if what is being searched is a ticker or a company name
-            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps);
+            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
         }
         else{
-            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps);
+            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
         }
     }
     // if !args.name.is_empty() {
@@ -80,7 +84,7 @@ fn main() {
 }
 
 
-fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool) {
+fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) {
     println!("Ticker: {}", ticker);
 
     // if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
@@ -89,80 +93,128 @@ fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool,
     // else{
     //     println!("{} is not a valid ticker", ticker);
     // }
-    scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps);
+    scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range);
 
 }
 
-fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool) {
-    let url = "https://finance.yahoo.com/quote/".to_owned() + ticker; //+ "p=" + ticker + "&.tsrc=fin-srch";
+fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) {
+    let url = "https://finance.yahoo.com/quote/".to_owned() + ticker;
 
-    let response = reqwest::blocking::get(url).unwrap().text().unwrap();
+    // Create a client with a User-Agent header
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        .build()
+        .unwrap();
+
+    // Add better error handling for the request
+    let response = match client.get(&url).send() {
+        Ok(resp) => match resp.text() {
+            Ok(text) => text,
+            Err(e) => {
+                println!("Error reading response: {}", e);
+                return;
+            }
+        },
+        Err(e) => {
+            println!("Error fetching URL: {}", e);
+            return;
+        }
+    };
+
     let document = scraper::Html::parse_document(&response);
     
-    let price_finder = scraper::Selector::parse("fin-streamer[value]").unwrap();//yahoo finance class that contains lots of prices info on the page
-
-    let stock_name_selector = scraper::Selector::parse("h1.D\\(ib\\).Fz\\(18px\\)").unwrap();//yahoo finance html element that has stock price
-
-    if let Some(element) = document.select(&stock_name_selector).next() {
-        let stock_name = element.text().collect::<Vec<_>>().join("");
-        println!("Stock Name: {}", stock_name);
+    // First check if the page exists
+    let error_selector = scraper::Selector::parse("div.error-container").unwrap();
+    if document.select(&error_selector).next().is_some() {
+        println!("Invalid Ticker: {} - Page not found", ticker);
+        return;
     }
 
-    let mut ticker_count = 0;
-    let mut price_info = Vec::new();
+    // Try to find the quote-price section first
+    let quote_section = scraper::Selector::parse("section[data-testid='quote-price']").unwrap();
+    if let Some(section) = document.select(&quote_section).next() {
+        // Get the current price using the exact selector from the HTML
+        let price_selector = scraper::Selector::parse("span[data-testid='qsp-price']").unwrap();
+        let price = section.select(&price_selector).next()
+            .map(|e| e.text().collect::<Vec<_>>().join(""))
+            .unwrap_or_else(|| "N/A".to_string());
 
-    for element in document.select(&price_finder){
-        if let Some(symbol) = element.value().attr("data-symbol") {
-            if symbol == ticker{
-                ticker_count += 1;
+        // Get the price change using the exact selector
+        let change_selector = scraper::Selector::parse("span[data-testid='qsp-price-change']").unwrap();
+        let change = section.select(&change_selector).next()
+            .map(|e| e.text().collect::<Vec<_>>().join(""))
+            .unwrap_or_else(|| "N/A".to_string());
+
+        // Get the percent change using the exact selector
+        let percent_selector = scraper::Selector::parse("span[data-testid='qsp-price-change-percent']").unwrap();
+        let percent = section.select(&percent_selector).next()
+            .map(|e| e.text().collect::<Vec<_>>().join(""))
+            .unwrap_or_else(|| "N/A".to_string());
+
+        println!("Price: {} | Daily Change: {} | Pct Change: {}", 
+            price, 
+            change,
+            percent
+        );
+    } else {
+        println!("Invalid Ticker: {} - Could not find price information", ticker);
+        return;
+    }
+
+    // Get additional statistics if requested
+    let stats_section = scraper::Selector::parse("div[data-testid='quote-statistics']").unwrap();
+    if let Some(section) = document.select(&stats_section).next() {
+        // Get the command line arguments to determine flag order
+        let args: Vec<String> = std::env::args().collect();
+        
+        // Create a vector of requested statistics with their selectors and labels
+        let mut stats_to_show = Vec::new();
+        
+        // Check flags in the order they appear in the command line
+        for arg in &args {
+            match arg.as_str() {
+                "-d" | "--day-range" if day_range => {
+                    stats_to_show.push((
+                        "Day's Range",
+                        "fin-streamer[data-field='regularMarketDayRange']"
+                    ));
+                },
+                "-w" | "--week-range-52" if week_range_52 => {
+                    stats_to_show.push((
+                        "52 Week Range",
+                        "fin-streamer[data-field='fiftyTwoWeekRange']"
+                    ));
+                },
+                "-m" | "--mkt-cap" if mkt_cap => {
+                    stats_to_show.push((
+                        "Market Cap",
+                        "fin-streamer[data-field='marketCap']"
+                    ));
+                },
+                "-p" | "--pe-ratio" if pe_ratio => {
+                    stats_to_show.push((
+                        "PE Ratio",
+                        "fin-streamer[data-field='trailingPE']"
+                    ));
+                },
+                "-e" | "--eps" if eps => {
+                    stats_to_show.push((
+                        "EPS",
+                        "fin-streamer[data-field='trailingPE']"
+                    ));
+                },
+                _ => continue,
             }
         }
-        if let Some(price) = element.value().attr("value") {
-            if ticker_count > 0 && ticker_count <= 3{
-                price_info.push(price);
+
+        // Print the statistics in the order they were requested
+        for (label, selector) in stats_to_show {
+            let stat_selector = scraper::Selector::parse(selector).unwrap();
+            if let Some(element) = section.select(&stat_selector).next() {
+                if let Some(value) = element.value().attr("data-value") {
+                    println!("{}: {}", label, value);
+                }
             }
-        }
-    }
-    if price_info.len() < 3{
-        println!("Invalid Ticker: {}", ticker);
-        return
-    }
-    println!("Price: {} | Daily Change: {:.5} | Pct Change {:.5}%", price_info[0], price_info[1], (price_info[2].parse::<f64>().unwrap() * 100.0).to_string());
-
-
-    if week_range_52{
-        let selector = scraper::Selector::parse("td[data-test=FIFTY_TWO_WK_RANGE-value]").unwrap();
-
-        if let Some(element) = document.select(&selector).next() {
-            let value = element.inner_html();
-            println!("52 Week Range: {}", value);
-        }
-    }
-
-    if mkt_cap{
-        let selector = scraper::Selector::parse("td[data-test=MARKET_CAP-value]").unwrap();
-
-        if let Some(element) = document.select(&selector).next() {
-            let value = element.inner_html();
-            println!("Market Cap: {}", value);
-        }
-    }
-
-    if pe_ratio{
-        let selector = scraper::Selector::parse("td[data-test=PE_RATIO-value]").unwrap();
-
-        if let Some(element) = document.select(&selector).next() {
-            let value = element.inner_html();
-            println!("PE Ratio: {}", value);
-        }
-    }
-
-    if eps{
-        let selector = scraper::Selector::parse("td[data-test=EPS_RATIO-value]").unwrap();
-
-        if let Some(element) = document.select(&selector).next() {
-            let value = element.inner_html();
-            println!("EPS: {}", value);
         }
     }
 }
@@ -218,7 +270,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
 }
 
 //function to find a ticker based on a company name
-fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool) -> () {
+fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) -> () {
     let company_name = company_name.to_lowercase();
     let mut temp_search = String::new();
     let mut last_result: Vec<Vec<u8>> = vec![vec![]];
@@ -237,11 +289,29 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
         .map(|u8s| std::str::from_utf8(u8s).unwrap())
         .collect();
 
-    println!("Search produced the following results: {:?} \n", results_in_str);
-    if !results_in_str.is_empty(){
-        scrape(ticker_map.get(results_in_str[0]).map(|s| s.as_str()).unwrap_or(""), week_range_52, mkt_cap, pe_ratio, eps);
-    }
-    else{
+    if results_in_str.is_empty() {
         println!("No results found");
+        return;
+    }
+
+    println!("Search produced the following results:");
+    for (i, company) in results_in_str.iter().enumerate() {
+        if let Some(ticker) = ticker_map.get(*company) {
+            println!("[{}] Company: {} | Ticker: {}", i, company, ticker);
+        }
+    }
+    println!("\nEnter the number of your choice (0-{}):", results_in_str.len() - 1);
+
+    let mut choice = String::new();
+    std::io::stdin().read_line(&mut choice).expect("Failed to read line");
+    
+    match choice.trim().parse::<usize>() {
+        Ok(index) if index < results_in_str.len() => {
+            if let Some(ticker) = ticker_map.get(results_in_str[index]) {
+                println!("Selected - Ticker: {}", ticker);
+                scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range);
+            }
+        },
+        _ => println!("Invalid selection. Please enter a number between 0 and {}", results_in_str.len() - 1)
     }
 }
