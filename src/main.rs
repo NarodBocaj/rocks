@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Error;
 use csv::Reader;
+use std::path::PathBuf;
 
 mod debug;
 
@@ -237,7 +238,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     // 2. In a 'filtered_data' subdirectory of the executable's directory
     // 3. In the current working directory
     // 4. In a 'filtered_data' subdirectory of the current working directory
-    
+    // 5. In the Homebrew share directory
     let possible_paths = [
         exe_dir.join("equities.csv"),
         exe_dir.join("etfs.csv"),
@@ -247,6 +248,10 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         std::env::current_dir()?.join("etfs.csv"),
         std::env::current_dir()?.join("filtered_data/equities.csv"),
         std::env::current_dir()?.join("filtered_data/etfs.csv"),
+        PathBuf::from("/usr/local/share/rocks/equities.csv"),
+        PathBuf::from("/usr/local/share/rocks/etfs.csv"),
+        PathBuf::from("/opt/homebrew/share/rocks/equities.csv"),
+        PathBuf::from("/opt/homebrew/share/rocks/etfs.csv"),
     ];
 
     let mut equities_path = None;
