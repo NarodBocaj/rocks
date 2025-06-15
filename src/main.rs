@@ -339,10 +339,10 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     for path in possible_paths {
         if path.exists() {
             if path.file_name().unwrap_or_default() == "equities.csv" {
-                equities_path = Some(path);
+                equities_path = Some(path.clone());
                 writeln!(debug_file, "Found equities.csv at: {:?}", path).unwrap();
             } else if path.file_name().unwrap_or_default() == "etfs.csv" {
-                etfs_path = Some(path);
+                etfs_path = Some(path.clone());
                 writeln!(debug_file, "Found etfs.csv at: {:?}", path).unwrap();
             }
         }
