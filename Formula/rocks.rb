@@ -1,7 +1,7 @@
 class Rocks < Formula
   desc "Command line tool for scraping Yahoo Finance stock information"
   homepage "https://github.com/NarodBocaj/rocks"
-  url "https://github.com/NarodBocaj/rocks/archive/refs/tags/v0.1.1.tar.gz"
+  url "https://github.com/NarodBocaj/rocks/archive/refs/tags/v0.1.4.tar.gz"
   sha256 "fa47d86a879c933c8a5fa50c2f3a23fc5aaca13f6250653ceb73581d6d77ff9d"
   license "MIT"
 
@@ -22,17 +22,14 @@ class Rocks < Formula
       echo "Setting ROCKS_DATA_DIR to #{pkgshare}"
       export ROCKS_DATA_DIR="#{pkgshare}"
       echo "ROCKS_DATA_DIR is now: $ROCKS_DATA_DIR"
-      echo "About to execute: #{libexec}/rocks"
-      if [ ! -f "#{libexec}/rocks" ]; then
-        echo "Error: Binary not found at #{libexec}/rocks"
+      echo "About to execute: #{bin}/rocks"
+      if [ ! -f "#{bin}/rocks" ]; then
+        echo "Error: Binary not found at #{bin}/rocks"
         exit 1
       fi
-      exec "#{libexec}/rocks" "$@"
+      exec "#{bin}/rocks" "$@"
     EOS
     chmod 0755, bin/"rocks"
-
-    # Move the actual binary to libexec
-    libexec.install "target/release/rocks"
   end
 
   test do
