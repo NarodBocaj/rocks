@@ -1,8 +1,8 @@
 class Rocks < Formula
   desc "Command line tool for scraping Yahoo Finance stock information"
   homepage "https://github.com/NarodBocaj/rocks"
-  url "https://github.com/NarodBocaj/rocks/archive/refs/tags/v0.1.4.tar.gz"
-  sha256 "f7925689f807f8304bcb5539f5ac4423de7c936c6d883fb10b1d3db7a261d777"
+  url "https://github.com/NarodBocaj/rocks/archive/refs/tags/v0.1.6.tar.gz"
+  sha256 "df2b4f5b005e30552f76d8b6cedaaf1034bd9cd85af0ca618054b43e7e990e7a"
   license "MIT"
 
   depends_on "rust" => :build
@@ -14,6 +14,9 @@ class Rocks < Formula
     pkgshare.install "filtered_data/equities.csv"
     pkgshare.install "filtered_data/etfs.csv"
     
+    # Move the actual binary to libexec
+    libexec.install "target/release/rocks"
+    
     # Create a wrapper script that sets the correct path for the CSV files
     (bin/"rocks").write <<~EOS
       #!/bin/bash
@@ -22,12 +25,12 @@ class Rocks < Formula
       echo "Setting ROCKS_DATA_DIR to #{pkgshare}"
       export ROCKS_DATA_DIR="#{pkgshare}"
       echo "ROCKS_DATA_DIR is now: $ROCKS_DATA_DIR"
-      echo "About to execute: #{bin}/rocks"
-      if [ ! -f "#{bin}/rocks" ]; then
-        echo "Error: Binary not found at #{bin}/rocks"
+      echo "About to execute: #{libexec}/rocks"
+      if [ ! -f "#{libexec}/rocks" ]; then
+        echo "Error: Binary not found at #{libexec}/rocks"
         exit 1
       fi
-      exec "#{bin}/rocks" "$@"
+      exec "#{libexec}/rocks" "$@"
     EOS
     chmod 0755, bin/"rocks"
   end

@@ -51,96 +51,45 @@ struct Args{
 }
 
 fn main() {
-    println!("Starting rocks...");  // Add immediate console output
-    let mut debug_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(true)
-        .open("/tmp/rocks_debug.log")
-        .expect("Failed to open debug log");
-
-    writeln!(debug_file, "Starting rocks...").unwrap();
-    println!("Debug file opened");  // Add immediate console output
-    
-    // Print environment variables for debugging
-    writeln!(debug_file, "Environment variables:").unwrap();
-    writeln!(debug_file, "ROCKS_DATA_DIR: {:?}", std::env::var("ROCKS_DATA_DIR")).unwrap();
-    writeln!(debug_file, "Current directory: {:?}", std::env::current_dir()).unwrap();
-    println!("Environment variables logged");  // Add immediate console output
-    
-    println!("About to parse args...");  // Add immediate console output
     let args = Args::parse();
-    writeln!(debug_file, "Parsed arguments: {:?}", args).unwrap();
-    println!("Args parsed");  // Add immediate console output
-
-    // Check if we're just showing help
-    if std::env::args().any(|arg| arg == "--help" || arg == "-h") {
-        println!("Help flag detected");  // Add immediate console output
-        println!("Command line tool for scraping Yahoo Finance stock information");
-        println!("\nUsage: rocks [OPTIONS] [QUERY]");
-        println!("\nOptions:");
-        println!("  -h, --help           Print help information");
-        println!("  -n, --name           Force company name based search");
-        println!("  -t, --ticker         Force ticker based search");
-        println!("  -w, --week-range-52  Print 52 week range of price");
-        println!("  -m, --mkt-cap        Print market cap");
-        println!("  -p, --pe-ratio       Print PE Ratio");
-        println!("  -e, --eps            Print earning per share");
-        println!("  -d, --day-range      Print day's trading range");
-        return;
-    }
 
     // If no query is provided, just return
     let query = match args.query {
-        Some(q) => {
-            writeln!(debug_file, "Query provided: {}", q).unwrap();
-            q
-        },
+        Some(q) => q,
         None => {
-            writeln!(debug_file, "No query provided, returning").unwrap();
             println!("No query provided. Please provide a ticker or company name.");
             return;
         }
     };
 
-    writeln!(debug_file, "About to initialize data structures...").unwrap();
     // Only load data if we're actually going to perform a query
     let mut ticker_map: HashMap<String, String> = HashMap::new();
     let mut builder: TrieBuilder<u8> = TrieBuilder::new();
     let mut ticker_hs: HashSet<String> = HashSet::new();
     
-    writeln!(debug_file, "Calling make_trie_hm...").unwrap();
     if let Err(e) = make_trie_hm(&mut ticker_map, &mut builder, &mut ticker_hs) {
-        writeln!(debug_file, "Error loading ticker data: {}", e).unwrap();
+        println!("Error loading ticker data: {}", e);
         return;
     }
-    writeln!(debug_file, "make_trie_hm completed successfully").unwrap();
 
-    writeln!(debug_file, "Building trie...").unwrap();
     let trie = builder.build();
-    writeln!(debug_file, "Trie built successfully").unwrap();
 
     if args.name && args.ticker {
         println!("Ticker flag and name flag cannot be used together");
     }
     else if args.ticker {
-        writeln!(debug_file, "Searching by ticker: {}", query).unwrap();
         stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else if args.name {
-        writeln!(debug_file, "Searching by company name: {}", query).unwrap();
         find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else if ticker_hs.contains(&query) {
-        writeln!(debug_file, "Found ticker in database: {}", query).unwrap();
         stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else {
-        writeln!(debug_file, "Ticker not found, searching by company name: {}", query).unwrap();
         find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
 }
-
 
 fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) {
     println!("Ticker: {}", ticker);
@@ -279,18 +228,8 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
 
 //function to make a trie and hashmap from the filtered data
 fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuilder<u8>, ticker_hs: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting make_trie_hm...");
-    
-    let mut debug_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(true)
-        .open("/tmp/rocks_debug.log")
-        .expect("Failed to open debug log");
-    
     // Get the executable's path
     let exe_path = std::env::current_exe()?;
-    writeln!(debug_file, "Executable path: {:?}", exe_path).unwrap();
     
     // Get the directory containing the executable
     let exe_dir = exe_path.parent().ok_or_else(|| {
@@ -299,14 +238,11 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
             "Failed to get the parent directory of the executable.",
         )
     })?;
-    writeln!(debug_file, "Executable directory: {:?}", exe_dir).unwrap();
 
     // Check for ROCKS_DATA_DIR environment variable first
     let data_dir = if let Ok(dir) = std::env::var("ROCKS_DATA_DIR") {
-        writeln!(debug_file, "Found ROCKS_DATA_DIR: {}", dir).unwrap();
         PathBuf::from(dir)
     } else {
-        writeln!(debug_file, "ROCKS_DATA_DIR not set, using exe_dir").unwrap();
         exe_dir.to_path_buf()
     };
 
@@ -328,11 +264,6 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         PathBuf::from("/opt/homebrew/share/rocks/etfs.csv"),
     ];
 
-    writeln!(debug_file, "Searching for CSV files in the following locations:").unwrap();
-    for path in &possible_paths {
-        writeln!(debug_file, "  {:?} - exists: {}", path, path.exists()).unwrap();
-    }
-
     let mut equities_path = None;
     let mut etfs_path = None;
 
@@ -340,16 +271,13 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
         if path.exists() {
             if path.file_name().unwrap_or_default() == "equities.csv" {
                 equities_path = Some(path.clone());
-                writeln!(debug_file, "Found equities.csv at: {:?}", path).unwrap();
             } else if path.file_name().unwrap_or_default() == "etfs.csv" {
                 etfs_path = Some(path.clone());
-                writeln!(debug_file, "Found etfs.csv at: {:?}", path).unwrap();
             }
         }
     }
 
     let equities_path = equities_path.ok_or_else(|| {
-        writeln!(debug_file, "Could not find equities.csv in any location").unwrap();
         Error::new(
             std::io::ErrorKind::NotFound,
             "Could not find equities.csv in any of the expected locations.",
@@ -357,7 +285,6 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     })?;
 
     let etfs_path = etfs_path.ok_or_else(|| {
-        writeln!(debug_file, "Could not find etfs.csv in any location").unwrap();
         Error::new(
             std::io::ErrorKind::NotFound,
             "Could not find etfs.csv in any of the expected locations.",
@@ -365,7 +292,6 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     })?;
 
     // Now, open the CSV files using the found paths
-    writeln!(debug_file, "Opening CSV files...").unwrap();
     let equities_file = File::open(equities_path)?;
     let etfs_file = File::open(etfs_path)?;
     
@@ -375,7 +301,6 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     let mut equities_csv_reader = Reader::from_reader(equities_reader);
     let mut etfs_csv_reader = Reader::from_reader(etfs_reader);
     
-    writeln!(debug_file, "Reading equities.csv...").unwrap();
     for record in equities_csv_reader.records() {
         let record = record?;
         
@@ -385,9 +310,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
             ticker_hs.insert(first.to_string());
         }
     }
-    writeln!(debug_file, "Finished reading equities.csv").unwrap();
     
-    writeln!(debug_file, "Reading etfs.csv...").unwrap();
     for record in etfs_csv_reader.records() {
         let record = record?;
         
@@ -397,9 +320,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
             ticker_hs.insert(first.to_string());
         }
     }
-    writeln!(debug_file, "Finished reading etfs.csv").unwrap();
     
-    writeln!(debug_file, "make_trie_hm completed successfully").unwrap();
     Ok(())
 }
 
