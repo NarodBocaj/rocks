@@ -3,7 +3,16 @@ Simple command line tool that scrapes Yahoo Finance to return stock information 
 
 # Installation
 
-## Mac/Linux
+## Mac (via Homebrew)
+```bash
+# Add the tap
+brew tap NarodBocaj/rocks
+
+# Install rocks
+brew install rocks
+```
+
+## Linux
 1. Clone the repository:
 ```bash
 git clone https://github.com/NarodBocaj/rocks
@@ -20,7 +29,6 @@ cargo build --release
 sudo ln -sf "$(pwd)/target/release/rocks" /usr/local/bin/rocks
 sudo cp filtered_data/equities.csv filtered_data/etfs.csv /usr/local/bin/
 ```
-
 
 # Quick Start
 ```bash
