@@ -51,6 +51,7 @@ struct Args{
 }
 
 fn main() {
+    println!("Starting rocks...");  // Add immediate console output
     let mut debug_file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -59,17 +60,22 @@ fn main() {
         .expect("Failed to open debug log");
 
     writeln!(debug_file, "Starting rocks...").unwrap();
+    println!("Debug file opened");  // Add immediate console output
     
     // Print environment variables for debugging
     writeln!(debug_file, "Environment variables:").unwrap();
     writeln!(debug_file, "ROCKS_DATA_DIR: {:?}", std::env::var("ROCKS_DATA_DIR")).unwrap();
     writeln!(debug_file, "Current directory: {:?}", std::env::current_dir()).unwrap();
+    println!("Environment variables logged");  // Add immediate console output
     
+    println!("About to parse args...");  // Add immediate console output
     let args = Args::parse();
     writeln!(debug_file, "Parsed arguments: {:?}", args).unwrap();
+    println!("Args parsed");  // Add immediate console output
 
     // Check if we're just showing help
     if std::env::args().any(|arg| arg == "--help" || arg == "-h") {
+        println!("Help flag detected");  // Add immediate console output
         println!("Command line tool for scraping Yahoo Finance stock information");
         println!("\nUsage: rocks [OPTIONS] [QUERY]");
         println!("\nOptions:");

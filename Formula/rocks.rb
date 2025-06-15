@@ -17,10 +17,22 @@ class Rocks < Formula
     # Create a wrapper script that sets the correct path for the CSV files
     (bin/"rocks").write <<~EOS
       #!/bin/bash
+      set -e  # Exit on error
+      echo "Wrapper script starting..."
+      echo "Setting ROCKS_DATA_DIR to #{pkgshare}"
       export ROCKS_DATA_DIR="#{pkgshare}"
-      exec "#{bin}/rocks" "$@"
+      echo "ROCKS_DATA_DIR is now: $ROCKS_DATA_DIR"
+      echo "About to execute: #{libexec}/rocks"
+      if [ ! -f "#{libexec}/rocks" ]; then
+        echo "Error: Binary not found at #{libexec}/rocks"
+        exit 1
+      fi
+      exec "#{libexec}/rocks" "$@"
     EOS
     chmod 0755, bin/"rocks"
+
+    # Move the actual binary to libexec
+    libexec.install "target/release/rocks"
   end
 
   test do
