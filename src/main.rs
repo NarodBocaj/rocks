@@ -8,6 +8,8 @@ use std::io::BufReader;
 use std::io::Error;
 use csv::Reader;
 use std::path::PathBuf;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 mod debug;
 
@@ -49,42 +51,64 @@ struct Args{
 }
 
 fn main() {
+    let mut debug_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(true)
+        .open("/tmp/rocks_debug.log")
+        .expect("Failed to open debug log");
+
+    writeln!(debug_file, "Starting rocks...").unwrap();
     let args = Args::parse();
+    writeln!(debug_file, "Parsed arguments: {:?}", args).unwrap();
 
     // If no query is provided, just return
     let query = match args.query {
-        Some(q) => q,
+        Some(q) => {
+            writeln!(debug_file, "Query provided: {}", q).unwrap();
+            q
+        },
         None => {
+            writeln!(debug_file, "No query provided, returning").unwrap();
             println!("No query provided. Please provide a ticker or company name.");
             return;
         }
     };
 
+    writeln!(debug_file, "About to initialize data structures...").unwrap();
     // Only load data if we're actually going to perform a query
     let mut ticker_map: HashMap<String, String> = HashMap::new();
     let mut builder: TrieBuilder<u8> = TrieBuilder::new();
     let mut ticker_hs: HashSet<String> = HashSet::new();
     
+    writeln!(debug_file, "Calling make_trie_hm...").unwrap();
     if let Err(e) = make_trie_hm(&mut ticker_map, &mut builder, &mut ticker_hs) {
-        eprintln!("Error loading ticker data: {}", e);
+        writeln!(debug_file, "Error loading ticker data: {}", e).unwrap();
         return;
     }
+    writeln!(debug_file, "make_trie_hm completed successfully").unwrap();
 
+    writeln!(debug_file, "Building trie...").unwrap();
     let trie = builder.build();
+    writeln!(debug_file, "Trie built successfully").unwrap();
 
     if args.name && args.ticker {
         println!("Ticker flag and name flag cannot be used together");
     }
     else if args.ticker {
+        writeln!(debug_file, "Searching by ticker: {}", query).unwrap();
         stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else if args.name {
+        writeln!(debug_file, "Searching by company name: {}", query).unwrap();
         find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else if ticker_hs.contains(&query) {
+        writeln!(debug_file, "Found ticker in database: {}", query).unwrap();
         stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
     else {
+        writeln!(debug_file, "Ticker not found, searching by company name: {}", query).unwrap();
         find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
 }
@@ -242,13 +266,23 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
     })?;
     println!("Executable directory: {:?}", exe_dir);
 
+    // Check for ROCKS_DATA_DIR environment variable first
+    let data_dir = if let Ok(dir) = std::env::var("ROCKS_DATA_DIR") {
+        PathBuf::from(dir)
+    } else {
+        exe_dir.to_path_buf()
+    };
+
     // Try to find the CSV files in the following locations:
-    // 1. In the same directory as the executable
-    // 2. In a 'filtered_data' subdirectory of the executable's directory
-    // 3. In the current working directory
-    // 4. In a 'filtered_data' subdirectory of the current working directory
-    // 5. In the Homebrew share directory
+    // 1. In ROCKS_DATA_DIR (if set)
+    // 2. In the same directory as the executable
+    // 3. In a 'filtered_data' subdirectory of the executable's directory
+    // 4. In the current working directory
+    // 5. In a 'filtered_data' subdirectory of the current working directory
+    // 6. In the Homebrew share directory
     let possible_paths = [
+        data_dir.join("equities.csv"),
+        data_dir.join("etfs.csv"),
         exe_dir.join("equities.csv"),
         exe_dir.join("etfs.csv"),
         exe_dir.join("filtered_data/equities.csv"),
