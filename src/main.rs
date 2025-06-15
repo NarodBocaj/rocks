@@ -16,8 +16,8 @@ mod debug;
 #[command(author, version, about, long_about = None)]
 struct Args{
     /// Enter ticker or company name for price info
-    // #[arg(short, long)]
-    query: String,
+    #[arg(required = false)]
+    query: Option<String>,
 
     /// Force company name based search
     #[arg(short, long, action)]
@@ -49,51 +49,43 @@ struct Args{
 }
 
 fn main() {
-    println!("Starting rocks...");
     let args = Args::parse();
-    println!("Parsed arguments: {:?}", args);
 
-    let mut ticker_map: HashMap<String, String> = HashMap::new(); //maps company name to ticker
-    let mut builder: TrieBuilder<u8> = TrieBuilder::new();
-    let mut ticker_hs: HashSet<String> = HashSet::new();
-    println!("Initializing data structures...");
-    
-    match make_trie_hm(&mut ticker_map, &mut builder, &mut ticker_hs) {
-        Ok(_) => println!("Successfully loaded ticker data"),
-        Err(e) => {
-            println!("Error loading ticker data: {}", e);
+    // If no query is provided, just return
+    let query = match args.query {
+        Some(q) => q,
+        None => {
+            println!("No query provided. Please provide a ticker or company name.");
             return;
         }
+    };
+
+    // Only load data if we're actually going to perform a query
+    let mut ticker_map: HashMap<String, String> = HashMap::new();
+    let mut builder: TrieBuilder<u8> = TrieBuilder::new();
+    let mut ticker_hs: HashSet<String> = HashSet::new();
+    
+    if let Err(e) = make_trie_hm(&mut ticker_map, &mut builder, &mut ticker_hs) {
+        eprintln!("Error loading ticker data: {}", e);
+        return;
     }
 
     let trie = builder.build();
-    println!("Trie built successfully");
 
-    if !args.query.is_empty() {
-        if args.name && args.ticker {
-            println!("Ticker flag and name flag cannot be used together");
-        }
-        
-        else if args.ticker {
-            println!("Searching by ticker: {}", args.query);
-            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
-        }
-        
-        else if args.name {
-            println!("Searching by company name: {}", args.query);
-            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
-        }
-        
-        else if ticker_hs.contains(&args.query) {
-            println!("Found ticker in database: {}", args.query);
-            stock_price(&args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
-        }
-        else {
-            println!("Ticker not found, searching by company name: {}", args.query);
-            find_ticker(& ticker_map, & trie, &args.query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
-        }
-    } else {
-        println!("No query provided. Please provide a ticker or company name.");
+    if args.name && args.ticker {
+        println!("Ticker flag and name flag cannot be used together");
+    }
+    else if args.ticker {
+        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+    }
+    else if args.name {
+        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+    }
+    else if ticker_hs.contains(&query) {
+        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+    }
+    else {
+        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
     }
 }
 
