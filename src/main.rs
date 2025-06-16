@@ -140,21 +140,21 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
     // Try to find the quote-price section first
     let quote_section = scraper::Selector::parse("section[data-testid='quote-price']").unwrap();
     if let Some(section) = document.select(&quote_section).next() {
-        // Get the current price using the exact selector from the HTML
-        let price_selector = scraper::Selector::parse("span[data-testid='qsp-price']").unwrap();
-        let price = section.select(&price_selector).next()
+        // Get the current price - try both market hours and non-market hours selectors
+        let price = section.select(&scraper::Selector::parse("span[data-testid='qsp-price']").unwrap())
+            .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
             .unwrap_or_else(|| "N/A".to_string());
 
-        // Get the price change using the exact selector
-        let change_selector = scraper::Selector::parse("span[data-testid='qsp-price-change']").unwrap();
-        let change = section.select(&change_selector).next()
+        // Get the price change - try both market hours and non-market hours selectors
+        let change = section.select(&scraper::Selector::parse("span[data-testid='qsp-price-change']").unwrap())
+            .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
             .unwrap_or_else(|| "N/A".to_string());
 
-        // Get the percent change using the exact selector
-        let percent_selector = scraper::Selector::parse("span[data-testid='qsp-price-change-percent']").unwrap();
-        let percent = section.select(&percent_selector).next()
+        // Get the percent change - try both market hours and non-market hours selectors
+        let percent = section.select(&scraper::Selector::parse("span[data-testid='qsp-price-change-percent']").unwrap())
+            .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
             .unwrap_or_else(|| "N/A".to_string());
 
