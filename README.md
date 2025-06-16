@@ -65,25 +65,35 @@ Basic usage:
 rocks AAPL
 ```
 
+> Apple Inc. (AAPL)
+> Price: 198.42  | Daily Change: +1.97  | Pct Change: +(1.00%)
+> After Close Price: 197.99
+
 Get multiple statistics:
 ```bash
-rocks AAPL -m -p -d
+rocks AXP -m -p -d
 ```
+
+> American Express Company (AXP)
+> Price: 294.22  | Daily Change: +6.43  | Pct Change: +(2.23%)
+> After Close Price: 294.75
+
+
+> Market Cap: 206.127B
+> PE Ratio: 20.54
+> Day's Range: 290.02 - 296.45
 
 Search by company name:
 ```bash
 rocks "apple"
 ```
 
-Prints:
-```
-Search Results:
----------------
-[0]  Company: apple hospitality reit, inc.             | Ticker: APLE
-[1]  Company: apple inc.                               | Ticker: AAPL
-
-Enter the number of your choice (0-1):
-```
+> Search Results:
+> ---------------
+> [0]  Company: apple hospitality reit, inc.             | Ticker: APLE
+> [1]  Company: apple inc.                               | Ticker: AAPL
+> 
+> Enter the number of your choice (0-1):
 
 # Notes
 * The default usage of rocks ```<QUERY>``` checks the ```<QUERY>``` to see if it is in a list of ~11,000 US stock and ETF tickers. If ```<QUERY>``` is not found, a trie based search is done assuming a company name was entered. So if searching a ticker that is on Yahoo Finance but not a US Symbol the ```--ticker``` flag is your friend.
