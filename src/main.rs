@@ -37,7 +37,7 @@ struct Args{
     #[arg(short, long, action)]
     mkt_cap: bool,
 
-    /// Print PE Ration
+    /// Print PE Ratio
     #[arg(short, long, action)]
     pe_ratio: bool,
 
@@ -48,6 +48,10 @@ struct Args{
     /// Print day's trading range
     #[arg(short, long, action)]
     day_range: bool,
+
+    /// Print company information
+    #[arg(short, long, action)]
+    information: bool,
 }
 
 fn main() {
@@ -78,20 +82,20 @@ fn main() {
         println!("Ticker flag and name flag cannot be used together");
     }
     else if args.ticker {
-        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range, args.information);
     }
     else if args.name {
-        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range, args.information);
     }
     else if ticker_hs.contains(&query) {
-        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+        stock_price(&query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range, args.information);
     }
     else {
-        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range);
+        find_ticker(& ticker_map, & trie, &query, args.week_range_52, args.mkt_cap, args.pe_ratio, args.eps, args.day_range, args.information);
     }
 }
 
-fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) {
+fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool, information: bool) {
     println!("Ticker: {}", ticker);
 
     // if tickers::exchanges::AMEX.contains(&ticker) || tickers::exchanges::NASDAQ.contains(&ticker) || tickers::exchanges::NYSE.contains(&ticker){//this currently is preventing ETFs
@@ -100,30 +104,64 @@ fn stock_price(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool,
     // else{
     //     println!("{} is not a valid ticker", ticker);
     // }
-    scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range);
+    scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range, information);
 
 }
 
-fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) {
+fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool, information: bool) {
     let url = "https://finance.yahoo.com/quote/".to_owned() + ticker;
+    let max_retries = 3;
+    let mut retry_count = 0;
+    let mut response = None;
 
-    // Create a client with a User-Agent header
+    // Create a client with proper headers
     let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        .timeout(std::time::Duration::from_secs(10))
         .build()
         .unwrap();
 
-    // Add better error handling for the request
-    let response = match client.get(&url).send() {
-        Ok(resp) => match resp.text() {
-            Ok(text) => text,
+    // Retry loop
+    while retry_count < max_retries {
+        match client.get(&url)
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.5")
+            .header("Accept-Encoding", "gzip, deflate, br")
+            .header("Connection", "keep-alive")
+            .header("Upgrade-Insecure-Requests", "1")
+            .header("Sec-Fetch-Dest", "document")
+            .header("Sec-Fetch-Mode", "navigate")
+            .header("Sec-Fetch-Site", "none")
+            .header("Sec-Fetch-User", "?1")
+            .header("Cache-Control", "max-age=0")
+            .send() {
+            Ok(resp) => match resp.text() {
+                Ok(text) => {
+                    response = Some(text);
+                    break;
+                },
+                Err(e) => {
+                    println!("Error reading response (attempt {}/{}): {}", retry_count + 1, max_retries, e);
+                    retry_count += 1;
+                    if retry_count < max_retries {
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                    }
+                }
+            },
             Err(e) => {
-                println!("Error reading response: {}", e);
-                return;
+                println!("Error fetching URL (attempt {}/{}): {}", retry_count + 1, max_retries, e);
+                retry_count += 1;
+                if retry_count < max_retries {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                }
             }
-        },
-        Err(e) => {
-            println!("Error fetching URL: {}", e);
+        }
+    }
+
+    let response = match response {
+        Some(text) => text,
+        None => {
+            println!("Failed to fetch data after {} attempts. Please try again later.", max_retries);
             return;
         }
     };
@@ -137,22 +175,28 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
         return;
     }
 
-    // Try to find the quote-price section first
-    let quote_section = scraper::Selector::parse("section[data-testid='quote-price']").unwrap();
-    if let Some(section) = document.select(&quote_section).next() {
-        // Get the current price - try both market hours and non-market hours selectors
+    // Get company name
+    let name_selector = scraper::Selector::parse("h1.yf-4vbjci").unwrap();
+    if let Some(name) = document.select(&name_selector).next() {
+        println!("\n{}", name.text().collect::<Vec<_>>().join(""));
+    }
+
+    // Try to find the price-statistic section first
+    let price_section = scraper::Selector::parse("section[data-testid='price-statistic']").unwrap();
+    if let Some(section) = document.select(&price_section).next() {
+        // Get the current price
         let price = section.select(&scraper::Selector::parse("span[data-testid='qsp-price']").unwrap())
             .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
             .unwrap_or_else(|| "N/A".to_string());
 
-        // Get the price change - try both market hours and non-market hours selectors
+        // Get the price change
         let change = section.select(&scraper::Selector::parse("span[data-testid='qsp-price-change']").unwrap())
             .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
             .unwrap_or_else(|| "N/A".to_string());
 
-        // Get the percent change - try both market hours and non-market hours selectors
+        // Get the percent change
         let percent = section.select(&scraper::Selector::parse("span[data-testid='qsp-price-change-percent']").unwrap())
             .next()
             .map(|e| e.text().collect::<Vec<_>>().join(""))
@@ -166,6 +210,21 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
     } else {
         println!("Invalid Ticker: {} - Could not find price information", ticker);
         return;
+    }
+
+    // Check for after-hours price
+    let after_hours_selector = scraper::Selector::parse("span[data-testid='qsp-post-price']").unwrap();
+    if let Some(after_hours) = document.select(&after_hours_selector).next() {
+        println!("After Close Price: {}", after_hours.text().collect::<Vec<_>>().join(""));
+    }
+
+    // Get company information if requested
+    if information {
+        let info_selector = scraper::Selector::parse("p.yf-1ja4ll8").unwrap();
+        if let Some(info) = document.select(&info_selector).next() {
+            println!("\nCompany Information:");
+            println!("{}", info.text().collect::<Vec<_>>().join(""));
+        }
     }
 
     // Get additional statistics if requested
@@ -215,7 +274,10 @@ fn scrape(ticker: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps:
         }
 
         // Print the statistics in the order they were requested
-        for (label, selector) in stats_to_show {
+        if stats_to_show.len() > 0{
+            println!("\n");
+        }
+        for (label, selector) in stats_to_show {    
             let stat_selector = scraper::Selector::parse(selector).unwrap();
             if let Some(element) = section.select(&stat_selector).next() {
                 if let Some(value) = element.value().attr("data-value") {
@@ -325,7 +387,7 @@ fn make_trie_hm(ticker_map: &mut HashMap<String, String>, builder: &mut TrieBuil
 }
 
 //function to find a ticker based on a company name
-fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool) -> () {
+fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_name: &str, week_range_52: bool, mkt_cap: bool, pe_ratio: bool, eps: bool, day_range: bool, information: bool) -> () {
     let company_name = company_name.to_lowercase();
     let mut temp_search = String::new();
     let mut last_result: Vec<Vec<u8>> = vec![vec![]];
@@ -369,7 +431,7 @@ fn find_ticker(ticker_map: & HashMap<String, String>, trie: & Trie<u8>, company_
         Ok(index) if index < results_in_str.len() => {
             if let Some(ticker) = ticker_map.get(results_in_str[index]) {
                 println!("\nSelected - Ticker: {}", ticker);
-                scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range);
+                scrape(ticker, week_range_52, mkt_cap, pe_ratio, eps, day_range, information);
             }
         },
         _ => println!("Invalid selection. Please enter a number between 0 and {}", results_in_str.len() - 1)
