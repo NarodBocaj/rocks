@@ -77,8 +77,7 @@ rocks AXP -m -p -d
 > American Express Company (AXP)
 > Price: 294.22  | Daily Change: +6.43  | Pct Change: +(2.23%)
 > After Close Price: 294.75
-
-
+> 
 > Market Cap: 206.127B
 > PE Ratio: 20.54
 > Day's Range: 290.02 - 296.45
@@ -88,8 +87,8 @@ Search by company name:
 rocks "apple"
 ```
 
-> Search Results:
-> ---------------
+> Search Results
+> -------------
 > [0]  Company: apple hospitality reit, inc.             | Ticker: APLE
 > [1]  Company: apple inc.                               | Ticker: AAPL
 > 
