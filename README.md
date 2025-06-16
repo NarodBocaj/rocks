@@ -1,14 +1,14 @@
 # <center>rocks</center>
-Simple command line tool that scrapes Yahoo Finance to return stock information based on ticker or a company name search. 
+Simple command line tool that brings Yahoo Finance stock info to your terminal. 
 
 # Installation
 
 ## Mac (via Homebrew)
 ```bash
-# Add the tap
-brew tap NarodBocaj/rocks
 
-# Install rocks
+brew tap NarodBocaj/rocks
+```
+```bash
 brew install rocks
 ```
 
@@ -72,10 +72,19 @@ rocks AAPL -m -p -d
 
 Search by company name:
 ```bash
-rocks "apple inc"
+rocks "apple"
 ```
+Prints:
+>Search Results:
+>---------------
+>[0]  Company: apple hospitality reit, inc.             | Ticker: APLE
+>[1]  Company: apple inc.                               | Ticker: AAPL
+>
+>Enter the number of your choice (0-1):
+
+
+Rocks also has 
 
 # Notes
 * The default usage of rocks ```<QUERY>``` checks the ```<QUERY>``` to see if it is in a list of ~11,000 US stock and ETF tickers. If ```<QUERY>``` is not found, a trie based search is done assuming a company name was entered. So if searching a ticker that is on Yahoo Finance but not a US Symbol the ```--ticker``` flag is your friend.
 * When searching by company name, you'll be presented with a list of matching companies to choose from.
-* The program requires the `equities.csv` and `etfs.csv` files to be in the same directory as the executable or in a `filtered_data` subdirectory.
